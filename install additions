@@ -1,0 +1,155 @@
+# Импортирование библиотек
+import os, sys
+from pygame import *
+
+
+# Класс спрайтов
+class GameSprite(sprite.Sprite):
+    def __init__(self, player_x, player_y, player_image, player_speed, player_size_x, player_size_y):
+        super().__init__()
+        self.image = transform.scale(image.load(player_image), (player_size_x, player_size_y))
+        self.speed = player_speed
+        self.rect = self.image.get_rect()
+        self.rect.x = player_x
+        self.rect.y = player_y
+
+    def reset(self):
+        window.blit(self.image, (self.rect.x, self.rect.y))
+
+
+class Player_1(GameSprite):
+    def update(self):
+        pressed_key = key.get_pressed()
+        if pressed_key[K_w] and self.rect.y >= 20:
+            self.rect.y -= self.speed
+        if pressed_key[K_s] and self.rect.y != 390:
+            self.rect.y += self.speed
+
+
+class Player_2(GameSprite):
+    def update(self):
+        pressed_key = key.get_pressed()
+        if pressed_key[K_UP] and self.rect.y >= 20:
+            self.rect.y -= self.speed
+        if pressed_key[K_DOWN] and self.rect.y != 390:
+            self.rect.y += self.speed
+
+
+class Ball(GameSprite):
+    def update(self):
+        global finish, speed_y, count_1, count_2, count_text_2, count_text_1
+        self.rect.y -= speed_y
+        self.rect.x -= self.speed
+        if self.rect.y <= 20 or self.rect.y >= 440:
+            speed_y *= -1
+            tap_effect.play()
+        if sprite.collide_rect(self, player_1) or sprite.collide_rect(self, player_2):
+            self.speed *= -1
+            touch_effect.play()
+        if self.rect.x <= 20:
+            count_2 += 1
+            count_text_2 = font.render(str(count_2), True, font_color)
+            finish = True
+        elif self.rect.x >= wind_width:
+            count_1 += 1
+            count_text_1 = font.render(str(count_1), True, font_color)
+            finish = True
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
+# Переменные
+wind_width = 700
+wind_height = 500
+
+# Экран
+game_name = "Пинг-понг"
+background_image = resource_path("background.png")
+display.set_caption(game_name)
+window = display.set_mode((wind_width, wind_height), RESIZABLE)
+background = transform.scale(image.load(background_image), (wind_width, wind_height))
+
+speed_y = 4
+
+# Музыка
+mixer.init()
+gaming_music = resource_path('game.ogg')
+mixer.music.set_volume(0.1)
+mixer.music.load(gaming_music)
+mixer.music.play()
+
+# font
+font.init()
+font_color = (255, 0, 255)
+font_size = 30
+font = font.SysFont("Arial", font_size)
+
+clock = time.Clock()
+FPS = 60
+
+count_1 = 0
+count_2 = 0
+
+count_text_1 = font.render(str(count_1), True, font_color)
+count_text_2 = font.render(str(count_2), True, font_color)
+count_text_3 = font.render(str(":"), True, font_color)
+players_image = resource_path("player_image.png")
+player_1 = Player_1(40, 250, players_image, 7, 50, 100)
+player_2 = Player_2(600, 250, players_image, 7, 50, 100)
+
+ball_image = resource_path("ball_image.png")
+ball = Ball(300, 250, ball_image, 7, 50, 50)
+
+sprites = sprite.Group(player_1, player_2, ball)
+game = True
+finish = False
+
+button = GameSprite(wind_width/2.5, wind_height/2.5, "Button.png", 0, 150, 150)
+flag = False
+
+touch_effect = mixer.Sound(resource_path('touch.ogg'))
+tap_effect = mixer.Sound(resource_path("tap.ogg"))
+
+
+while game:
+    window.blit(background, (0, 0))
+
+    pressed_keys = key.get_pressed()
+    for e in event.get():
+        if e.type == QUIT:
+            game = False
+        elif e.type == KEYDOWN:
+            pass
+    if not finish:
+        sprites.update()
+
+    if finish:
+        if ball.rect.y != 250:
+            flag = True
+            ball.rect.y = 250
+            ball.rect.x = -300
+        button.reset()
+        gaming_music = "lose.ogg"
+        if flag:
+            mixer.music.load(gaming_music)
+            mixer.music.play()
+            flag = False
+        if pressed_keys[K_SPACE]:
+            ball.rect.x = 300
+            flag = True
+            gaming_music = "game.ogg"
+            if flag:
+                mixer.music.load(gaming_music)
+                mixer.music.play()
+                flag = False
+            finish = False
+    sprites.draw(window)
+    window.blit(count_text_1, (320, 20))
+    window.blit(count_text_3, (340, 20))
+    window.blit(count_text_2, (350, 20))
+
+    display.update()
+    clock.tick(FPS)
